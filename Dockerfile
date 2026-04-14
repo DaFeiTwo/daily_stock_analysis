@@ -2,6 +2,10 @@
 # A股自选股智能分析系统 - Docker 镜像
 # ===================================
 # 多阶段构建：前端打包 + 后端运行
+#
+# 注意：本文件是 docker/Dockerfile 的根目录副本，
+# 用于兼容阿里云 ACR 自动构建（ACR 默认在根目录查找 Dockerfile）。
+# 如需修改构建逻辑，请同步更新 docker/Dockerfile。
 
 FROM node:20-slim AS web-builder
 
