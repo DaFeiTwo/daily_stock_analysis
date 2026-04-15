@@ -73,6 +73,59 @@ class FeishuSender:
         }
     
           
+    def send_feishu_summary_card(self, card_payload: dict) -> bool:
+        """
+        发送飞书交互卡片（用于精简汇总卡片，含按钮等交互元素）
+
+        Args:
+            card_payload: 完整的 interactive card payload（msg_type + card）
+
+        Returns:
+            是否发送成功
+        """
+        if not self._feishu_url:
+            logger.warning("飞书 Webhook 未配置，跳过汇总卡片推送")
+            return False
+
+        security_fields = self._build_security_fields()
+        request_payload = dict(card_payload)
+        request_payload.update(security_fields)
+
+        # 飞书关键词安全校验：对交互卡片，关键词需出现在 card JSON 中。
+        # 将关键词追加到 header title 前面，确保通过校验。
+        if self._feishu_keyword:
+            try:
+                header_title = request_payload["card"]["header"]["title"]["content"]
+                request_payload["card"]["header"]["title"]["content"] = (
+                    f"{self._feishu_keyword} {header_title}"
+                )
+            except (KeyError, TypeError):
+                logger.warning("飞书汇总卡片结构异常，无法注入关键词前缀")
+
+        try:
+            response = requests.post(
+                self._feishu_url,
+                json=request_payload,
+                timeout=30,
+                verify=self._webhook_verify_ssl,
+            )
+            if response.status_code == 200:
+                result = response.json()
+                code = result.get('code') if 'code' in result else result.get('StatusCode')
+                if code == 0:
+                    logger.info("飞书汇总卡片发送成功")
+                    return True
+                else:
+                    error_msg = result.get('msg') or result.get('StatusMessage', '未知错误')
+                    logger.error(f"飞书汇总卡片返回错误: {error_msg}")
+                    return False
+            else:
+                logger.error(f"飞书汇总卡片请求失败: HTTP {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"发送飞书汇总卡片失败: {e}")
+            return False
+
     def send_to_feishu(self, content: str) -> bool:
         """
         推送消息到飞书机器人

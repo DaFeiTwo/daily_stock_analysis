@@ -547,6 +547,10 @@ class Config:
     feishu_webhook_url: Optional[str] = None
     feishu_webhook_secret: Optional[str] = None  # 自定义机器人签名密钥（可选）
     feishu_webhook_keyword: Optional[str] = None  # 自定义机器人关键词（可选）
+    feishu_summary_card_enabled: bool = False  # 飞书精简汇总卡片（买入/持有/卖出一览 + 详情链接）
+
+    # Web 服务外部访问地址（用于通知消息中的"查看详情"链接）
+    web_base_url: Optional[str] = None
     
     # Telegram 配置（需要同时配置 Bot Token 和 Chat ID）
     telegram_bot_token: Optional[str] = None  # Bot Token（@BotFather 获取）
@@ -1226,6 +1230,8 @@ class Config:
             feishu_webhook_url=os.getenv('FEISHU_WEBHOOK_URL'),
             feishu_webhook_secret=os.getenv('FEISHU_WEBHOOK_SECRET'),
             feishu_webhook_keyword=os.getenv('FEISHU_WEBHOOK_KEYWORD'),
+            feishu_summary_card_enabled=os.getenv('FEISHU_SUMMARY_CARD_ENABLED', 'false').lower() == 'true',
+            web_base_url=os.getenv('WEB_BASE_URL'),
             telegram_bot_token=os.getenv('TELEGRAM_BOT_TOKEN'),
             telegram_chat_id=os.getenv('TELEGRAM_CHAT_ID'),
             telegram_message_thread_id=os.getenv('TELEGRAM_MESSAGE_THREAD_ID'),

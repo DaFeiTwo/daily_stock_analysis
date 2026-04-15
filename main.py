@@ -532,6 +532,7 @@ def run_full_analysis(
         logger.info("\n任务执行完成")
 
         # === 新增：生成飞书云文档 ===
+        doc_url = None
         try:
             from src.feishu_doc import FeishuDocManager
 
@@ -569,6 +570,27 @@ def run_full_analysis(
 
         except Exception as e:
             logger.error(f"飞书文档生成失败: {e}")
+
+        # === 飞书精简汇总卡片（买入/持有/卖出一览 + 查看详情按钮）===
+        if (
+            results
+            and not args.no_notify
+            and getattr(config, 'feishu_summary_card_enabled', False)
+        ):
+            try:
+                web_base_url = getattr(config, 'web_base_url', None)
+                card_payload = pipeline.notifier.build_feishu_summary_card(
+                    results,
+                    web_base_url=web_base_url,
+                    doc_url=doc_url,
+                )
+                if card_payload:
+                    if pipeline.notifier.send_feishu_summary_card(card_payload):
+                        logger.info("飞书汇总卡片推送成功")
+                    else:
+                        logger.warning("飞书汇总卡片推送失败")
+            except Exception as e:
+                logger.error(f"飞书汇总卡片推送异常: {e}")
 
         # === Auto backtest ===
         try:

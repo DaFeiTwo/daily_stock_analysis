@@ -248,6 +248,176 @@ class NotificationService(
             return self.generate_brief_report(results, report_date=report_date)
         return self.generate_dashboard_report(results, report_date=report_date)
 
+    def build_feishu_summary_card(
+        self,
+        results: List[AnalysisResult],
+        web_base_url: Optional[str] = None,
+        doc_url: Optional[str] = None,
+    ) -> Optional[dict]:
+        """
+        构建飞书精简汇总卡片 payload（买入/持有/卖出一览 + 查看详情按钮）。
+
+        卡片在群里一眼可见每只股票的操作建议，点击按钮可跳转 Web 详情或飞书文档。
+
+        Args:
+            results: 分析结果列表
+            web_base_url: Web 服务外部地址（如 https://your-server:8000），用于详情链接
+            doc_url: 飞书云文档链接（可选）
+
+        Returns:
+            飞书 interactive card payload dict，或 None（无结果时）
+        """
+        if not results:
+            return None
+
+        report_language = self._get_report_language(results)
+        sorted_results = sorted(results, key=lambda x: x.sentiment_score, reverse=True)
+
+        buy_list = []
+        hold_list = []
+        sell_list = []
+
+        for r in sorted_results:
+            _, emoji, tag = self._get_signal_level(r)
+            name = self._get_display_name(r, report_language)
+            price_str = ""
+            if r.current_price is not None:
+                # 根据股票代码推断货币符号：纯字母=美股($)，hk前缀=港股(HK$)，其余=A股(¥)
+                code_upper = (r.code or "").strip().upper()
+                if code_upper.startswith("HK"):
+                    currency = "HK$"
+                elif code_upper.isalpha():
+                    currency = "$"
+                else:
+                    currency = "¥"
+                price_str = f"  {currency}{r.current_price}"
+            change_str = ""
+            if r.change_pct is not None:
+                sign = "+" if r.change_pct >= 0 else ""
+                change_str = f" ({sign}{r.change_pct:.2f}%)"
+
+            line = f"{emoji} **{name}**({r.code}){price_str}{change_str}  评分:{r.sentiment_score}"
+
+            if tag in ("strong_buy", "buy"):
+                buy_list.append(line)
+            elif tag in ("sell", "strong_sell", "reduce"):
+                sell_list.append(line)
+            else:
+                hold_list.append(line)
+
+        buy_count = len(buy_list)
+        hold_count = len(hold_list)
+        sell_count = len(sell_list)
+
+        now_str = datetime.now().strftime('%m-%d %H:%M')
+        header_title = f"📊 {now_str} 分析汇总 ({len(results)}只)"
+
+        # Build card elements
+        elements = []
+
+        # Summary line
+        elements.append({
+            "tag": "div",
+            "text": {
+                "tag": "lark_md",
+                "content": f"🟢买入:{buy_count}  🟡观望:{hold_count}  🔴减仓/卖出:{sell_count}",
+            },
+        })
+
+        elements.append({"tag": "hr"})
+
+        # Buy section
+        if buy_list:
+            elements.append({
+                "tag": "div",
+                "text": {
+                    "tag": "lark_md",
+                    "content": "**🟢 建议买入/加仓**\n" + "\n".join(buy_list),
+                },
+            })
+
+        # Hold section
+        if hold_list:
+            elements.append({
+                "tag": "div",
+                "text": {
+                    "tag": "lark_md",
+                    "content": "**🟡 持有/观望**\n" + "\n".join(hold_list),
+                },
+            })
+
+        # Sell section
+        if sell_list:
+            elements.append({
+                "tag": "div",
+                "text": {
+                    "tag": "lark_md",
+                    "content": "**🔴 减仓/卖出**\n" + "\n".join(sell_list),
+                },
+            })
+
+        elements.append({"tag": "hr"})
+
+        # Action buttons
+        buttons = []
+        if web_base_url:
+            url = web_base_url.rstrip("/")
+            buttons.append({
+                "tag": "button",
+                "text": {"tag": "plain_text", "content": "📋 查看完整报告"},
+                "type": "primary",
+                "url": url,
+            })
+        if doc_url:
+            buttons.append({
+                "tag": "button",
+                "text": {"tag": "plain_text", "content": "📄 飞书文档"},
+                "type": "default",
+                "url": doc_url,
+            })
+
+        if buttons:
+            elements.append({
+                "tag": "action",
+                "actions": buttons,
+            })
+
+        # Note
+        elements.append({
+            "tag": "note",
+            "elements": [
+                {
+                    "tag": "plain_text",
+                    "content": f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} · 仅供参考，不构成投资建议",
+                }
+            ],
+        })
+
+        # Determine header color based on majority signal
+        if buy_count > sell_count:
+            header_color = "green"
+        elif sell_count > buy_count:
+            header_color = "red"
+        else:
+            header_color = "yellow"
+
+        card_payload = {
+            "msg_type": "interactive",
+            "card": {
+                "config": {"wide_screen_mode": True},
+                "header": {
+                    "title": {
+                        "tag": "plain_text",
+                        "content": header_title,
+                    },
+                    "template": header_color,
+                },
+                "elements": elements,
+            },
+        }
+
+        return card_payload
+
     def _collect_models_used(self, results: List[AnalysisResult]) -> List[str]:
         models: List[str] = []
         for result in results:
