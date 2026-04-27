@@ -7,7 +7,7 @@
 # 用于兼容阿里云 ACR 自动构建（ACR 默认在根目录查找 Dockerfile）。
 # 如需修改构建逻辑，请同步更新 docker/Dockerfile。
 
-FROM node:20-slim AS web-builder
+FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-slim AS web-builder
 
 WORKDIR /app/apps/dsa-web
 
@@ -18,7 +18,7 @@ COPY apps/dsa-web/ ./
 RUN npm run build
 
 # Pin to bookworm: wkhtmltopdf was removed from Debian testing (2025)
-FROM python:3.11-slim-bookworm
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim-bookworm
 
 # 设置工作目录
 WORKDIR /app
