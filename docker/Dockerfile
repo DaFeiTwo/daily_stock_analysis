@@ -3,7 +3,7 @@
 # ===================================
 # 多阶段构建：前端打包 + 后端运行
 
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-slim AS web-builder
+FROM node:20-slim AS web-builder
 
 WORKDIR /app/apps/dsa-web
 
@@ -14,7 +14,7 @@ COPY apps/dsa-web/ ./
 RUN npm run build
 
 # Pin to bookworm: wkhtmltopdf was removed from Debian testing (2025)
-FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 # 设置工作目录
 WORKDIR /app
