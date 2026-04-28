@@ -73,6 +73,20 @@ DEFAULT_PARSER_SPECS: Tuple[CsvParserSpec, ...] = (
             "trade_uid": ("流水号", "成交编号", "成交序号"),
         },
     ),
+    CsvParserSpec(
+        broker="galaxy",
+        aliases=("yinhe",),
+        display_name="银河",
+        column_hints={
+            "trade_date": ("日期", "成交日期", "发生日期"),
+            "symbol": ("证券代码", "股票代码", "代码"),
+            "side": ("业务标志", "买卖标志", "买卖方向"),
+            "quantity": ("成交数量", "数量", "成交股数"),
+            "price": ("价格", "成交价格", "成交均价", "成交价"),
+            "amount": ("发生金额",),
+            "trade_uid": ("流水号", "成交编号", "成交序号"),
+        },
+    ),
 )
 
 
@@ -341,7 +355,18 @@ class PortfolioImportService:
         price = self._parse_float(
             self._pick(row, *(broker_hints.get("price") or ()), "成交均价", "成交价格", "价格", "成交价", "均价")
         )
-        if quantity is None or quantity <= 0 or price is None or price <= 0:
+        if price is None or price <= 0:
+            return None
+
+        # Fallback: derive quantity from |amount| / price when quantity column
+        # is missing (e.g. Galaxy broker CSV only has "发生金额").
+        if quantity is None or quantity <= 0:
+            amount_raw = self._parse_float(
+                self._pick(row, *(broker_hints.get("amount") or ()), "发生金额", "成交金额")
+            )
+            if amount_raw is not None and amount_raw != 0 and price > 0:
+                quantity = round(abs(amount_raw) / price)
+        if quantity is None or quantity <= 0:
             return None
 
         fee = 0.0

@@ -30,6 +30,7 @@ const FALLBACK_BROKERS: PortfolioImportBrokerItem[] = [
   { broker: 'huatai', aliases: [], displayName: '华泰' },
   { broker: 'citic', aliases: ['zhongxin'], displayName: '中信' },
   { broker: 'cmb', aliases: ['cmbchina', 'zhaoshang'], displayName: '招商' },
+  { broker: 'galaxy', aliases: ['yinhe'], displayName: '银河' },
 ];
 
 type AccountOption = 'all' | number;
@@ -97,6 +98,7 @@ function formatBrokerLabel(value: string, displayName?: string): string {
   if (value === 'huatai') return 'huatai（华泰）';
   if (value === 'citic') return 'citic（中信）';
   if (value === 'cmb') return 'cmb（招商）';
+  if (value === 'galaxy') return 'galaxy（银河）';
   return value;
 }
 
