@@ -293,6 +293,13 @@ class PortfolioImportService:
 
     @staticmethod
     def _read_csv(content: bytes) -> pd.DataFrame:
+        # Support xlsx/xls files by detecting magic bytes
+        if content[:4] == b"PK\x03\x04":
+            # ZIP-based format (xlsx)
+            return pd.read_excel(io.BytesIO(content), dtype=str, keep_default_na=False)
+        if content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+            # OLE2 format (xls)
+            return pd.read_excel(io.BytesIO(content), dtype=str, keep_default_na=False)
         for encoding in ("utf-8-sig", "gbk", "gb18030"):
             try:
                 return pd.read_csv(

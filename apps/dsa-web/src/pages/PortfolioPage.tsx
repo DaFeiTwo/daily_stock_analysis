@@ -1161,7 +1161,7 @@ const PortfolioPage: React.FC = () => {
               </select>
               <label className={PORTFOLIO_FILE_PICKER_CLASS}>
                 选择 CSV
-                <input type="file" accept=".csv" className="hidden"
+                <input type="file" accept=".csv,.xlsx,.xls" className="hidden"
                   onChange={(e) => setCsvFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
               </label>
             </div>
